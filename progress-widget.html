@@ -20,7 +20,6 @@
           </label>
           <br>
           <select required name="incident-date" placeholder="placeholder">
-            <option selected>-- select --</option>
             <option value="less than 1 year">less than 1 year</option>
             <option value="less than 2 years">less than 2 years</option>
             <option value="less than 3 years">less than 3 years</option>
@@ -34,7 +33,6 @@
           </label>
           <br>
           <select required name="police-report-filed">
-            <option selected>- select -</option>
             <option value="Yes">Yes</option>
             <option value="No">No</option>
           </select>
@@ -44,8 +42,7 @@
             What was your primary injury?
           </label>
           <br>
-          <select name="primary-injury">
-            <option selected>- select -</option>
+          <select required name="primary-injury">
             <option value="Back or Neck Pain">Back or Neck Pain</option>
             <option value="Broken Bones">Broken Bones</option>
             <option value="Cuts and Bruises">Cuts and Bruises</option>
@@ -60,38 +57,43 @@
             What are your case details?
           </label>
           <br>
-          <textarea name="case-details" maxlength="2500"></textarea>
+          <textarea required name="case-details" maxlength="2500" minlength="2"></textarea>
         </div>
         <div class="questionnaire-step-2 questionnaire-panel questionnaire-no-display">
           <label for="zip">Zip code</label>
           <br>
-          <input type="text" name="zip" maxlength="5"/>
+          <input required type="text" name="zip" minlength="5" maxlength="5" />
         </div>
         <div class="questionnaire-step-3 questionnaire-panel questionnaire-no-display">
           <label for="first-name">
             First Name
           </label>
           <br>
-          <input type="text" name="first-name" maxlength="100">
+          <input required type="text" name="first-name" maxlength="100">
           <br>
           <label for="last-name">
             Last Name
           </label>
           <br>
-          <input type="text" name="last-name" maxlength="100">
+          <input required type="text" name="last-name" maxlength="100">
         </div>
         <div class="questionnaire-step-4 questionnaire-panel questionnaire-no-display">
           <label for="phone">
             Primary Phone
           </label>
           <br>
-          <input type="text" name="phone" maxlength="10">
+          <input required type="text" name="phone" size="10">
           <br>
           <label for="email">
             Email
           </label>
           <br>
-          <input type="text" name="email" maxlength="100">
+          <input
+            required
+            type="text"
+            name="email"
+            maxlength="100"
+          >
         </div>
       </div>
       <br>
@@ -117,6 +119,10 @@
       max-width: 800px;
     }
 
+    #questionnaire-widget select.invalid,input.invalid,textarea.invalid {
+      border: solid red 1px;
+    }
+
     #questionnaire-widget .questionnaire-no-display {
       display: none;
     }
@@ -124,6 +130,8 @@
     #questionnaire-widget .questionnaire-hidden {
       visibility: hidden;
     }
+
+    #questionnaire-widget select,textarea,input,button
 
     #questionnaire-widget select,textarea,input,button {
       border-radius: 5px;
@@ -135,6 +143,7 @@
       line-height: 27px;
       background-color: #f1eeee;
       font-size: 15px;
+      outline: none;
     }
 
     #questionnaire-widget .header {
@@ -154,7 +163,7 @@
     }
 
     #questionnaire-widget #questionnaire-form select,input,textarea,button {
-      width: 75%;
+      width: 100%;
       margin-bottom: 25px;
     }
 
@@ -202,18 +211,31 @@
   </style>
   <script>
     ((parent, w) => {
-      // utils
+      // utils and constants
       const getStepClassName = (n) => `.questionnaire-step-${n}`;
+
+      // this will allow us to set the default value and programmatically validate within the JavaScript. 
+      const selectPlaceholder = '-- select --';
       const p = (query) => parent.querySelector(query);
       const pall = (query) => parent.querySelectorAll(query);
       const pac = (query, className) => parent.querySelector(query).classList.add(className);
       const prc = (query, className) => parent.querySelector(query).classList.remove(className);
-      const $prevButton = p('#questionnaire-previous')
-      const $nextButton = p('#questionnaire-button')
+      const $prevButton = p('#questionnaire-previous');
+      const $nextButton = p('#questionnaire-button');
 
-      const progressBarElement = parent.querySelector('.current-progress');
-      const questionCount = parent.querySelectorAll('.questionnaire-panel').length;
+
+      const progressBarElement = p('.current-progress');
+      const questionCount = pall('.questionnaire-panel').length;
       let currentProgress = 0;
+
+      pall('select').forEach(select => {
+        const option = document.createElement('option');
+        option.textContent = selectPlaceholder;
+        option.value = selectPlaceholder;
+        option.setAttribute('selected', 'true');
+
+        select.prepend(option);
+      });
       
       const getMinMaxBounds = (num) => Math.max(0, Math.min(num, questionCount - 1));
 
@@ -229,6 +251,12 @@
       progressBarElement.addEventListener('transitionend', () => {
         $prevButton.disabled = false;
         $nextButton.disabled = false;
+        if (currentProgress === questionCount -1) {
+          $nextButton.value = 'submit';
+        } else {
+          $nextButton.value = 'next';
+        }
+
         pall('.progress-node').forEach((node, i) => {
           if (currentProgress > 0) {
             prc('#questionnaire-previous', 'questionnaire-hidden');
@@ -250,12 +278,51 @@
         });
       });
 
+      pall('input,select,textarea').forEach(node => node.addEventListener('change', () => {
+        node.classList.remove('invalid');
+        node.setCustomValidity('');
+      }));
+
+      const isCurrentPanelValid = () => {
+        const currentPanel = p('.questionnaire-panel:not(.questionnaire-no-display)');
+        const currentPanelInputs = currentPanel.querySelectorAll('input,textarea');
+        const currentPanelSelects = currentPanel.querySelectorAll('select');
+
+        const areAllSelectsValid = [...currentPanelSelects].map(select => {
+          if (select.value === selectPlaceholder) {
+            select.setCustomValidity('please select an option');
+            select.reportValidity();
+            select.classList.add('invalid');
+            return false;
+          }
+
+          select.classList.remove('invalid');
+          select.setCustomValidity('');
+          return true;
+        }).every(bool => bool);
+        
+        const areAllInputsValid = [...currentPanelInputs].map(node => {
+          if (!node.reportValidity()) {
+            node.classList.add('invalid');
+            return false;
+          }
+
+          node.classList.remove('invalid');
+          return true;
+        }).every(bool => bool);
+
+        return areAllSelectsValid && areAllInputsValid;
+      };
+
       const setNextProgressAndTransition = (nextProgress) => {
         if (getMinMaxBounds(nextProgress) === currentProgress) {
           return;
         }
-        console.log(p("#questionnaire-form").checkValidity());
-        console.log(p('#questionnaire-form').reportValidity());
+
+        // ony validate if we're moving forward
+        if (nextProgress > currentProgress && !isCurrentPanelValid()) {
+          return
+        }
 
         $prevButton.disabled = true;
         $nextButton.disabled = true;
@@ -272,8 +339,29 @@
 
       $nextButton.addEventListener('click', (event) => {
         event.preventDefault();
-        setNextProgressAndTransition(currentProgress + 1);
+        
+        if (currentProgress === questionCount - 1) {
+          submitForm();
+        } else {
+          setNextProgressAndTransition(currentProgress + 1);
+        }
       });
+
+      function submitForm() {
+        if (isCurrentPanelValid()) {
+          const formData = new FormData(p('#questionnaire-form'));
+          const jsonObj = {};
+          for (const pair of formData.entries()) {
+            jsonObj[pair[0]] = pair[1];
+          }
+
+          fetch('/wp-json/contact-form-7/v1/contact-forms/158/feedback', {
+            method: 'POST',
+            headers : {"Content-Type": "multipart/form-data"},
+            body: JSON.stringify(jsonObj)
+          });
+        }
+      }
 })(document.querySelector('#questionnaire-widget'), window, document);
   </script>
 </body>
